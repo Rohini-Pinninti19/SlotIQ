@@ -13,6 +13,7 @@ type MeetingRow = {
   status: MeetingRecord["status"];
   fit_score: number;
   conflict_count: number;
+  attendee_conflict_counts: Record<string, number>;
   constraints: MeetingRecord["constraints"];
   slot: MeetingRecord["slot"];
   agenda: MeetingRecord["agenda"] | null;
@@ -53,6 +54,7 @@ export async function saveMeetingRecord(record: MeetingRecord): Promise<MeetingR
       status: record.status,
       fit_score: record.fitScore,
       conflict_count: record.conflictCount,
+      attendee_conflict_counts: record.attendeeConflictCounts,
       constraints: record.constraints,
       slot: record.slot,
       agenda: record.agenda || null,
@@ -78,6 +80,7 @@ function toMeetingRecord(row: MeetingRow): MeetingRecord {
     status: row.status,
     fitScore: row.fit_score,
     conflictCount: row.conflict_count,
+    attendeeConflictCounts: row.attendee_conflict_counts || {},
     constraints: row.constraints,
     slot: row.slot,
     agenda: row.agenda || undefined,

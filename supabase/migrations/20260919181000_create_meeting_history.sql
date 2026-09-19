@@ -7,6 +7,7 @@ create table if not exists public.meeting_history (
   status text not null check (status in ('scheduled', 'draft')),
   fit_score integer not null check (fit_score between 0 and 100),
   conflict_count integer not null check (conflict_count >= 0),
+  attendee_conflict_counts jsonb not null default '{}'::jsonb,
   constraints jsonb not null,
   slot jsonb not null,
   agenda jsonb

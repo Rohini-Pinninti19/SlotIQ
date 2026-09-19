@@ -9,6 +9,7 @@ export type MeetingRecord = {
   status: "scheduled" | "draft";
   fitScore: number;
   conflictCount: number;
+  attendeeConflictCounts: Record<string, number>;
   constraints: Constraints;
   slot: Slot;
   agenda?: Agenda;

@@ -15,6 +15,7 @@ import { generateInviteText } from "@/lib/googleMeet";
 type Step = "input" | "review" | "results" | "invite";
 type WorkspaceView = "schedule" | "meetings" | "calendars";
 type ConflictExplanation = { tradeoffExplanation: string; suggestedResolution: string; aiStatus?: "ai" | "fallback" };
+type ParseResponse = { constraints?: Constraints; aiStatus?: "ai" | "fallback"; needsClarification?: boolean; clarification?: string; error?: string };
 
 const LOADING_MESSAGES = [
   "Understanding your meeting request…",
@@ -516,12 +517,13 @@ function ResultsView({
 }
 
 // ─── Input View ────────────────────────────────────────────────────────────────
-function InputView({ input, setInput, onSubmit, onSample }: { input: string; setInput: (v: string) => void; onSubmit: () => void; onSample: (v: string) => void }) {
+function InputView({ input, setInput, onSubmit, onSample, clarification }: { input: string; setInput: (v: string) => void; onSubmit: () => void; onSample: (v: string) => void; clarification: string }) {
   return (
     <div className="view input-view">
       <div className="section-kicker"><span className="pulse" /> NEW REQUEST <span className="shortcut"><Command size={12} /> K</span></div>
       <h2>What are you trying to schedule?</h2>
       <p className="lead">Describe the meeting in your own words. SlotIQ handles the calendar math.</p>
+      {clarification && <div className="tradeoff-alert" role="status"><strong>One more detail needed.</strong><span>{clarification}</span></div>}
       <div className="request-box">
         <textarea
           id="meeting-input"
@@ -812,6 +814,13 @@ function InviteView({
 // ─── Meetings View ─────────────────────────────────────────────────────────────
 function MeetingsView({ onSchedule, meetings }: { onSchedule: () => void; meetings: MeetingRecord[] }) {
   const conflictsResolved = meetings.filter((meeting) => meeting.conflictCount > 0).length;
+  const fairness = meetings.reduce<Record<string, number>>((totals, meeting) => {
+    Object.entries(meeting.attendeeConflictCounts || {}).forEach(([attendee, count]) => {
+      totals[attendee] = (totals[attendee] || 0) + count;
+    });
+    return totals;
+  }, {});
+  const mostAffected = Object.entries(fairness).sort(([, a], [, b]) => b - a)[0];
   return (
     <div className="view workspace-page">
       <div className="section-kicker"><Check size={15} /> MEETING HUB</div>
@@ -826,6 +835,7 @@ function MeetingsView({ onSchedule, meetings }: { onSchedule: () => void; meetin
         <div><strong>{meetings.length}</strong><span>meetings scheduled</span></div>
         <div><strong>{conflictsResolved}</strong><span>conflicts reviewed</span></div>
         <div><strong>{meetings.length ? Math.round(meetings.reduce((sum, meeting) => sum + meeting.fitScore, 0) / meetings.length) : 0}%</strong><span>average fit score</span></div>
+        <div><strong>{mostAffected ? mostAffected[0] : "—"}</strong><span>most affected attendee</span></div>
       </div>
       <div className="meeting-list">
         {meetings.length === 0 && <div className="data-note">No scheduled meetings yet. Select a slot to create your first history entry.</div>}
@@ -938,15 +948,19 @@ export default function Home() {
   const [aiStatus, setAiStatus] = useState<AiStatus>({ parserUsed: "fallback", agendaUsed: "fallback" });
   const [agendaAiStatus, setAgendaAiStatus] = useState<"ai" | "fallback">("fallback");
   const [meetings, setMeetings] = useState<MeetingRecord[]>([]);
+  const [clarification, setClarification] = useState("");
 
   useEffect(() => {
-    fetch("/api/meetings")
+    const loadMeetings = () => fetch("/api/meetings")
       .then(async (response) => {
-        const data = await response.json();
+        const data: { meetings: MeetingRecord[]; error?: string } = await response.json();
         if (!response.ok) throw new Error(data.error || "Meeting history is unavailable.");
         setMeetings(data.meetings);
       })
       .catch((caught) => setError(caught instanceof Error ? caught.message : "Meeting history is unavailable."));
+    loadMeetings();
+    const refresh = window.setInterval(loadMeetings, 15000);
+    return () => window.clearInterval(refresh);
   }, []);
 
   async function parseMeeting() {
@@ -958,8 +972,14 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input }),
       });
-      const data = await response.json();
+      const data: ParseResponse = await response.json();
       if (!response.ok) throw new Error(data.error);
+      if (data.needsClarification || !data.constraints) {
+        setClarification(data.clarification || "Please add the meeting duration and attendees.");
+        setStep("input");
+        return;
+      }
+      setClarification("");
       setConstraints(data.constraints);
       setAiStatus(prev => ({ ...prev, parserUsed: data.aiStatus || "fallback" }));
       setStep("review");
@@ -1011,6 +1031,10 @@ export default function Home() {
         status: "scheduled",
         fitScore: slot.fitScore,
         conflictCount: slot.conflicts.length,
+        attendeeConflictCounts: constraints.attendees.reduce<Record<string, number>>((counts, attendee) => {
+          counts[attendee] = slot.conflicts.filter((conflict) => conflict.attendee === attendee).length;
+          return counts;
+        }, {}),
         constraints,
         slot,
         agenda: data.agenda,
@@ -1154,7 +1178,7 @@ export default function Home() {
                   <button className="error-dismiss" onClick={() => setError("")} aria-label="Dismiss error">×</button>
                 </div>
               )}
-              {step === "input" && <InputView input={input} setInput={setInput} onSubmit={parseMeeting} onSample={setInput} />}
+              {step === "input" && <InputView input={input} setInput={setInput} onSubmit={parseMeeting} onSample={setInput} clarification={clarification} />}
               {step === "review" && constraints && (
                 <ReviewView
                   constraints={constraints}

@@ -79,6 +79,14 @@ npm run build
 
 `npm test` runs the deterministic scheduling and parsing test suite with Vitest. Use
 `npm run test:watch` while developing.
+Browser workflows are covered by Playwright; run `npx playwright install chromium`
+once, then use `npm run test:e2e`. GitHub Actions runs lint, unit tests, and the
+production build for every push and pull request.
+
+The Meetings view refreshes persisted history periodically so multiple open
+workspaces converge without a manual reload. Each scheduled record also stores
+per-attendee conflict counts, which are aggregated as a fairness indicator in
+the meeting hub.
 
 ## Persistence and observability
 

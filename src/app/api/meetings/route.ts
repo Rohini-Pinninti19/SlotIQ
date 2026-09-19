@@ -15,7 +15,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const record = await request.json() as MeetingRecord;
-    if (!record.id || !record.title || !record.slot?.date || !Array.isArray(record.attendees)) {
+    if (!record.id || !record.title || !record.slot?.date || !Array.isArray(record.attendees) || !record.attendeeConflictCounts) {
       return NextResponse.json({ error: "A meeting record with title, date, slot, and attendees is required." }, { status: 400 });
     }
     return NextResponse.json({ meeting: await saveMeetingRecord(record) }, { status: 201 });
