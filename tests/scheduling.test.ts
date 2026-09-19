@@ -24,6 +24,12 @@ describe("parseRequest", () => {
     const constraints = parseRequest("I need a 1-hour brainstorming session with Alice, Bob and Carol next week.");
     expect(constraints.duration).toBe(60);
     expect(constraints.attendees).toEqual(["Alice", "Bob", "Carol"]);
+    expect(constraints.excludedDays).toEqual([]);
+  });
+
+  it("removes an excluded Friday when the request explicitly allows it", () => {
+    expect(parseRequest("Schedule a 30-minute review with Alice next week, no longer avoid Friday.").excludedDays).toEqual([]);
+    expect(parseRequest("Schedule a 30-minute review with Alice next week and avoid Friday.").excludedDays).toEqual(["Friday"]);
   });
 });
 

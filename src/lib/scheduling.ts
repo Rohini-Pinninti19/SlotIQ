@@ -52,8 +52,9 @@ export const defaultConstraints = (): Constraints => ({
 
 export function getRestoredDays(input: string): string[] {
   return dayNames.slice(1, 6).filter((day) =>
-    new RegExp(`(?:remove|removes|removed|without|don't|do not|no longer)\\s+(?:the\\s+)?(?:exclude|excluded|excluding|avoid|avoiding)\\s+(?:on\\s+)?${day}`, "i").test(input)
-    || new RegExp(`(?:include|allow|allowed)\\s+(?:on\\s+)?${day}`, "i").test(input),
+    new RegExp(`(?:remove|removes|removed|clear|cleared|delete|drop)\\s+(?:the\\s+)?(?:exclusion|excluded\\s+day|exclude|excluded|avoiding?|restriction)?\\s*(?:for|on)?\\s*${day}`, "i").test(input)
+    || new RegExp(`(?:don't|do\\s+not|no\\s+longer|stop)\\s+(?:exclude|excluding|avoid|avoiding)\\s+(?:on\\s+)?${day}`, "i").test(input)
+    || new RegExp(`(?:include|including|allow|allowed|add)\\s+(?:on\\s+)?${day}`, "i").test(input),
   );
 }
 
@@ -119,7 +120,7 @@ export function parseRequest(input: string): Constraints {
     duration,
     attendees: parsedAttendees,
     preferredDays: preferredDays.filter((day) => !excludedDays.includes(day) || restoredDays.includes(day)),
-    excludedDays: restoredDays.length ? excludedDays.filter((day) => !restoredDays.includes(day)) : excludedDays.length ? excludedDays : ["Friday"],
+    excludedDays: excludedDays.filter((day) => !restoredDays.includes(day)),
     excludedTimes,
     preferredTimes,
     meetingPurpose: meetingPurpose.charAt(0).toUpperCase() + meetingPurpose.slice(1),
