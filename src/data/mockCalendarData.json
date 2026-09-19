@@ -1,0 +1,52 @@
+{
+  "week": {
+    "start": "2026-09-21",
+    "end": "2026-09-25",
+    "timezone": "Asia/Kolkata"
+  },
+  "attendees": [
+    {
+      "name": "Alice",
+      "role": "Product Designer",
+      "busyBlocks": [
+        { "day": "Tuesday", "start": "14:00", "end": "15:00", "title": "Client call" },
+        { "day": "Wednesday", "start": "09:00", "end": "10:00", "title": "All-hands" },
+        { "day": "Thursday", "start": "16:00", "end": "17:00", "title": "Focus time" }
+      ]
+    },
+    {
+      "name": "Bob",
+      "role": "Frontend Engineer",
+      "busyBlocks": [
+        { "day": "Tuesday", "start": "14:30", "end": "15:30", "title": "Design review" },
+        { "day": "Wednesday", "start": "10:00", "end": "11:00", "title": "Standup" },
+        { "day": "Thursday", "start": "13:00", "end": "14:00", "title": "Partner sync" }
+      ]
+    },
+    {
+      "name": "Carol",
+      "role": "Product Manager",
+      "busyBlocks": [
+        { "day": "Tuesday", "start": "15:00", "end": "16:00", "title": "Manager 1:1" },
+        { "day": "Thursday", "start": "11:00", "end": "12:00", "title": "Research review" },
+        { "day": "Friday", "start": "09:00", "end": "17:00", "title": "Off-site" }
+      ]
+    },
+    { "name": "Dave", "role": "Backend Engineer", "busyBlocks": [] },
+    {
+      "name": "Eve",
+      "role": "Engineering Manager",
+      "busyBlocks": [
+        { "day": "Tuesday", "start": "15:30", "end": "16:30", "title": "Hiring panel" },
+        { "day": "Wednesday", "start": "10:30", "end": "11:30", "title": "Product standup" }
+      ]
+    },
+    {
+      "name": "Frank",
+      "role": "Finance Partner",
+      "busyBlocks": [
+        { "day": "Wednesday", "start": "14:00", "end": "15:00", "title": "Finance review" }
+      ]
+    }
+  ]
+}
