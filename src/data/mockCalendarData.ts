@@ -12,15 +12,19 @@ export const team: TeamMember[] = [
 export const attendees = team.map((member) => member.name);
 export const getMember = (name: string) => team.find((member) => member.name === name);
 
-// Demo week: fixed to Sep 21-25 2026 for predictable hackathon demo.
-// "Next week" and dynamic date resolution all resolve to this window during demo.
-const weekDates = [
-  ["Monday", "2026-09-21"],
-  ["Tuesday", "2026-09-22"],
-  ["Wednesday", "2026-09-23"],
-  ["Thursday", "2026-09-24"],
-  ["Friday", "2026-09-25"],
-] as const;
+function getNextWeekDates(reference = new Date()) {
+  const monday = new Date(reference);
+  const day = monday.getDay();
+  const daysUntilNextMonday = day === 0 ? 1 : 8 - day;
+  monday.setDate(monday.getDate() + daysUntilNextMonday);
+  return Array.from({ length: 5 }, (_, index) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + index);
+    return [date.toLocaleDateString("en-US", { weekday: "long" }), date.toISOString().slice(0, 10)] as const;
+  });
+}
+
+const weekDates = getNextWeekDates();
 
 const blocks: Omit<CalendarEvent, "date" | "day">[] = [
   { id: "a1", attendee: "Alice", start: "14:00", end: "15:00", title: "Client call" },
@@ -54,17 +58,25 @@ export const getWeekDates = () => weekDates.map(([day, date]) => ({ day, date })
 // In a real product these would reference the actual current date.
 export function resolveRelativeDate(expression: string): { start: string; end: string } {
   const lower = expression.toLowerCase();
-  const demoStart = "2026-09-21";
-  const demoEnd = "2026-09-25";
-  const requestedDay = weekDates.find(([day]) => new RegExp(`\\b${day.toLowerCase()}\\b`).test(lower));
+  const dynamicWeekDates = getNextWeekDates();
+  const demoStart = dynamicWeekDates[0][1];
+  const demoEnd = dynamicWeekDates[4][1];
+  const requestedDay = dynamicWeekDates.find(([day]) => new RegExp(`\\b${day.toLowerCase()}\\b`).test(lower));
   if (requestedDay && !lower.includes("week")) {
     return { start: requestedDay[1], end: requestedDay[1] };
   }
   if (lower.includes("next week") || lower.includes("this week") || lower.includes("next") || lower.includes("week")) {
     return { start: demoStart, end: demoEnd };
   }
-  if (lower.includes("tomorrow") || lower.includes("today")) {
-    return { start: demoStart, end: demoStart };
+  if (lower.includes("tomorrow")) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const date = tomorrow.toISOString().slice(0, 10);
+    return { start: date, end: date };
+  }
+  if (lower.includes("today")) {
+    const date = new Date().toISOString().slice(0, 10);
+    return { start: date, end: date };
   }
   return { start: demoStart, end: demoEnd };
 }

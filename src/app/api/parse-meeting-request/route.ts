@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { parseMeetingRequest } from "@/lib/ai";
 import { logger } from "@/lib/logger";
 import { ClarificationState, nextClarification } from "@/lib/clarification";
+import { parseRequestSchema } from "@/lib/schemas";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    if (!body.input?.trim()) return NextResponse.json({ error: "Please describe the meeting you want to schedule." }, { status: 400 });
+    const parsedBody = parseRequestSchema.safeParse(await request.json());
+    if (!parsedBody.success) return NextResponse.json({ error: "Please provide a valid meeting request." }, { status: 400 });
+    const body = parsedBody.data;
     const input = String(body.input);
     const clarification = nextClarification(input, body.clarificationState as ClarificationState | undefined);
     if (clarification) return NextResponse.json({ needsClarification: true, clarification: clarification.question, clarificationState: clarification.state });

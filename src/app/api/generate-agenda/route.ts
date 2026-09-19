@@ -5,10 +5,13 @@ import { createGoogleMeeting, updateGoogleEventDescription } from "@/lib/google"
 import { getMember } from "@/data/mockCalendarData";
 import { logger } from "@/lib/logger";
 import { validateConstraints, validateSlot } from "@/lib/scheduling";
+import { slotRequestSchema } from "@/lib/schemas";
 
 export async function POST(request: Request) {
   try {
-    const { constraints: rawConstraints, slot: rawSlot } = await request.json();
+    const parsed = slotRequestSchema.safeParse(await request.json());
+    if (!parsed.success) return NextResponse.json({ error: "Invalid agenda request." }, { status: 400 });
+    const { constraints: rawConstraints, slot: rawSlot } = parsed.data;
     const constraints = validateConstraints(rawConstraints);
     const slot = validateSlot(rawSlot);
     const { agenda, aiStatus: agendaAiStatus } = await generateMeetingAgenda(constraints, slot);

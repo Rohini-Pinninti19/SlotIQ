@@ -104,6 +104,15 @@ API routes emit structured JSON logs with timestamps and levels through
 `src/lib/logger.ts`. AI failures are logged and intentionally fall back to the
 deterministic parser, agenda generator, or conflict explanation.
 
+Relative dates are resolved from the current date through the calendar data
+provider rather than a fixed September 2026 week. The demo calendar remains
+deterministic, but its next-week window moves automatically. API boundaries use
+Zod schemas before deterministic validation or AI output handling.
+
+The calendar adapter is intentionally provider-neutral. Google Calendar is
+implemented today; Microsoft Graph can be added behind the same availability
+and event-creation contract without changing the scheduling engine.
+
 ## API routes
 
 An OpenAPI 3 description is available at `/openapi.json` and in

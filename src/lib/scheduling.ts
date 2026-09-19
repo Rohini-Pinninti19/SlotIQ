@@ -46,8 +46,8 @@ export const defaultConstraints = (): Constraints => ({
   duration: 45, attendees: ["Alice", "Bob", "Carol", "Dave"], preferredDays: [],
   preferredTimes: [{ start: "13:00", end: "17:00" }], excludedDays: ["Friday"],
   excludedTimes: [{ start: "12:00", end: "13:00", reason: "lunch" }], excludedPeople: [],
-  meetingPurpose: "Project review", location: "", dateRange: { start: "2026-09-21", end: "2026-09-25" },
-  additionalNotes: "", timezone: "Asia/Kolkata",
+  meetingPurpose: "Project review", location: "", dateRange: resolveRelativeDate("next week"),
+  additionalNotes: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
 });
 
 export function getRestoredDays(input: string): string[] {

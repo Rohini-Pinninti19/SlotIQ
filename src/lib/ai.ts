@@ -34,7 +34,7 @@ export async function parseMeetingRequest(input: string): Promise<{ constraints:
   if (!isOpenAIEnabled()) return { constraints: fallback, aiStatus: "fallback" };
   try {
     const now = new Date().toISOString().slice(0, 10);
-    const prompt = `Current date: ${now}. Timezone: Asia/Kolkata.
+    const prompt = `Current date: ${now}. Timezone: ${fallback.timezone || "UTC"}.
 Team directory: ${team.map((m) => `${m.name} (${m.role})`).join(", ")}.
 Parse this meeting request into JSON with these exact fields:
 - duration: number (minutes)
@@ -46,7 +46,7 @@ Parse this meeting request into JSON with these exact fields:
 - excludedPeople: string[]
 - meetingPurpose: string (concise title)
 - location: string (room name, "Google Meet (online)", or "" if not mentioned)
-- dateRange: {start: "YYYY-MM-DD", end: "YYYY-MM-DD"} (use 2026-09-21 to 2026-09-25 for next week)
+- dateRange: {start: "YYYY-MM-DD", end: "YYYY-MM-DD"} (resolve relative dates from the current date)
 - additionalNotes: string
 
 Request: ${input}`;
