@@ -830,7 +830,7 @@ function MeetingsView({ onSchedule, meetings }: { onSchedule: () => void; meetin
       <div className="meeting-list">
         {meetings.length === 0 && <div className="data-note">No scheduled meetings yet. Select a slot to create your first history entry.</div>}
         {meetings.map((meeting) => (
-          <article className="meeting-row" key={meeting.title}>
+          <article className="meeting-row" key={meeting.id}>
             <div className="meeting-icon"><Check size={16} /></div>
             <div className="meeting-main">
               <strong>{meeting.title}</strong>
