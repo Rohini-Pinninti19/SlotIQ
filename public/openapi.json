@@ -1,0 +1,79 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SlotIQ Scheduling API",
+    "version": "1.0.0",
+    "description": "Natural-language meeting scheduling, deterministic availability analysis, agenda generation, and meeting history."
+  },
+  "servers": [{ "url": "/" }],
+  "paths": {
+    "/api/parse-meeting-request": {
+      "post": {
+        "summary": "Parse a meeting request",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ParseRequest" } } }
+        },
+        "responses": { "200": { "description": "Parsed constraints or a clarification question" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/find-meeting-slots": {
+      "post": {
+        "summary": "Find ranked available slots",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Constraints" } } }
+        },
+        "responses": { "200": { "description": "Ranked slots" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/generate-agenda": {
+      "post": {
+        "summary": "Generate an agenda and invite draft",
+        "responses": { "200": { "description": "Agenda and invite draft" }, "400": { "$ref": "#/components/responses/BadRequest" } }
+      }
+    },
+    "/api/meetings": {
+      "get": { "summary": "List meeting history", "responses": { "200": { "description": "Meeting records" } } },
+      "post": { "summary": "Persist a meeting record", "responses": { "201": { "description": "Saved meeting record" }, "400": { "$ref": "#/components/responses/BadRequest" } } }
+    },
+    "/api/calendar": {
+      "get": { "summary": "Read the demo calendar", "responses": { "200": { "description": "Calendar week and busy events" } } }
+    }
+  },
+  "components": {
+    "responses": { "BadRequest": { "description": "Invalid request" } },
+    "schemas": {
+      "ParseRequest": {
+        "type": "object",
+        "required": ["input"],
+        "properties": {
+          "input": { "type": "string" },
+          "timezone": { "type": "string" },
+          "clarificationState": { "type": "object", "properties": { "baseInput": { "type": "string" }, "step": { "type": "string", "enum": ["duration", "attendees"] } } }
+        }
+      },
+      "Constraints": {
+        "type": "object",
+        "required": ["duration", "attendees", "preferredDays", "preferredTimes", "excludedDays", "excludedTimes", "meetingPurpose", "dateRange"],
+        "properties": {
+          "duration": { "type": "integer", "minimum": 5, "maximum": 480 },
+          "attendees": { "type": "array", "items": { "type": "string" } },
+          "preferredDays": { "type": "array", "items": { "type": "string" } },
+          "preferredTimes": { "type": "array", "items": { "$ref": "#/components/schemas/TimeRange" } },
+          "excludedDays": { "type": "array", "items": { "type": "string" } },
+          "excludedTimes": { "type": "array", "items": { "$ref": "#/components/schemas/TimeRange" } },
+          "meetingPurpose": { "type": "string" },
+          "location": { "type": "string" },
+          "timezone": { "type": "string" },
+          "dateRange": { "type": "object", "required": ["start", "end"], "properties": { "start": { "type": "string", "format": "date" }, "end": { "type": "string", "format": "date" } } }
+        }
+      },
+      "TimeRange": {
+        "type": "object",
+        "required": ["start", "end"],
+        "properties": { "start": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$" }, "end": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$" } }
+      }
+    }
+  }
+}

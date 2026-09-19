@@ -11,12 +11,13 @@ import { MeetingRecord } from "@/types/history";
 import { attendees as calendarAttendees, calendar, team } from "@/data/mockCalendarData";
 import { generateInviteText } from "@/lib/googleMeet";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import { ClarificationState } from "@/lib/clarification";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Step = "input" | "review" | "results" | "invite";
 type WorkspaceView = "schedule" | "meetings" | "calendars";
 type ConflictExplanation = { tradeoffExplanation: string; suggestedResolution: string; aiStatus?: "ai" | "fallback" };
-type ParseResponse = { constraints?: Constraints; aiStatus?: "ai" | "fallback"; needsClarification?: boolean; clarification?: string; error?: string };
+type ParseResponse = { constraints?: Constraints; aiStatus?: "ai" | "fallback"; needsClarification?: boolean; clarification?: string; clarificationState?: ClarificationState; error?: string };
 
 const LOADING_MESSAGES = [
   "Understanding your meeting request…",
@@ -961,6 +962,7 @@ export default function Home() {
   const [agendaAiStatus, setAgendaAiStatus] = useState<"ai" | "fallback">("fallback");
   const [meetings, setMeetings] = useState<MeetingRecord[]>([]);
   const [clarification, setClarification] = useState("");
+  const [clarificationState, setClarificationState] = useState<ClarificationState | undefined>();
   const [syncMode, setSyncMode] = useState<"realtime" | "polling">("polling");
 
   useEffect(() => {
@@ -993,16 +995,23 @@ export default function Home() {
       const response = await fetch("/api/parse-meeting-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input }),
+        body: JSON.stringify({
+          input,
+          clarificationState,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
       });
       const data: ParseResponse = await response.json();
       if (!response.ok) throw new Error(data.error);
       if (data.needsClarification || !data.constraints) {
         setClarification(data.clarification || "Please add the meeting duration and attendees.");
+        setClarificationState(data.clarificationState);
+        setInput("");
         setStep("input");
         return;
       }
       setClarification("");
+      setClarificationState(undefined);
       setConstraints(data.constraints);
       setAiStatus(prev => ({ ...prev, parserUsed: data.aiStatus || "fallback" }));
       setStep("review");

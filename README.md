@@ -106,6 +106,9 @@ deterministic parser, agenda generator, or conflict explanation.
 
 ## API routes
 
+An OpenAPI 3 description is available at `/openapi.json` and in
+[public/openapi.json](./public/openapi.json).
+
 - `POST /api/parse-meeting-request`
 - `POST /api/find-meeting-slots`
 - `POST /api/generate-agenda`
