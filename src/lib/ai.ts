@@ -2,6 +2,7 @@ import { Agenda, AiStatus, Constraints, Conflict, Slot } from "@/types/schedulin
 import { defaultConstraints, getRestoredDays, parseRequest, validateConstraints, classifyMeetingType } from "@/lib/scheduling";
 import { generateAgenda } from "@/lib/agenda";
 import { team } from "@/data/mockCalendarData";
+import { logger } from "@/lib/logger";
 
 const isOpenAIEnabled = () => process.env.AI_PROVIDER === "openai" && Boolean(process.env.OPENAI_API_KEY);
 const model = process.env.OPENAI_MODEL?.includes(" ") ? "gpt-3.5-turbo" : (process.env.OPENAI_MODEL || "gpt-3.5-turbo");
@@ -53,7 +54,10 @@ Request: ${input}`;
     const restoredDays = getRestoredDays(input);
     const excludedDays = (parsed.excludedDays || []).filter((day) => !restoredDays.includes(day));
     return { constraints: validateConstraints({ ...defaultConstraints(), ...parsed, excludedDays, additionalNotes: parsed.additionalNotes || input }), aiStatus: "ai" };
-  } catch { return { constraints: fallback, aiStatus: "fallback" }; }
+  } catch (error) {
+    logger.warn("AI parsing failed; using deterministic parser", { error: error instanceof Error ? error.message : String(error) });
+    return { constraints: fallback, aiStatus: "fallback" };
+  }
 }
 
 function buildPurposeSpecificAgendaPrompt(constraints: Constraints, slot: Slot, meetingType: string): string {
@@ -103,7 +107,10 @@ export async function generateMeetingAgenda(constraints: Constraints, slot: Slot
       return { agenda: fallback, aiStatus: "fallback" };
     }
     return { agenda: { ...generated, meetingType }, aiStatus: "ai" };
-  } catch { return { agenda: fallback, aiStatus: "fallback" }; }
+  } catch (error) {
+    logger.warn("AI agenda generation failed; using deterministic agenda", { error: error instanceof Error ? error.message : String(error) });
+    return { agenda: fallback, aiStatus: "fallback" };
+  }
 }
 
 export async function explainConflict(slot: Slot, constraints: Constraints): Promise<{ tradeoffExplanation: string; suggestedResolution: string; aiStatus: AiStatus["conflictExplanationUsed"] }> {
@@ -129,5 +136,8 @@ Meeting: ${constraints.meetingPurpose}. Slot: ${slot.label}. Duration: ${constra
 Available: ${available || "none"}. Conflicts: ${conflicts || "none"}.
 Be factual, specific, and mention exact times and roles. Suggest a concrete alternative if there are conflicts.`) as { tradeoffExplanation: string; suggestedResolution: string };
     return { ...result, aiStatus: "ai" as const };
-  } catch { return fallback; }
+  } catch (error) {
+    logger.warn("AI conflict explanation failed; using deterministic explanation", { error: error instanceof Error ? error.message : String(error) });
+    return fallback;
+  }
 }

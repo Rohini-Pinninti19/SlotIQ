@@ -7,16 +7,39 @@ const toTime = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart
 const formatTime = (value: string) => { const [h, m] = value.split(":").map(Number); const suffix = h >= 12 ? "PM" : "AM"; return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${suffix}`; };
 const overlaps = (start: string, end: string, event: CalendarEvent) => toMinutes(start) < toMinutes(event.end) && toMinutes(end) > toMinutes(event.start);
 const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+const validDate = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+};
+const weekdays = dayNames.slice(1, 6);
 
 export function validateConstraints(value: unknown): Constraints {
   if (!value || typeof value !== "object") throw new Error("Scheduling constraints are missing.");
   const constraints = value as Partial<Constraints>;
   if (!Number.isInteger(constraints.duration) || !constraints.duration || constraints.duration < 5 || constraints.duration > 480) throw new Error("Meeting duration must be between 5 minutes and 8 hours.");
   if (!Array.isArray(constraints.attendees) || constraints.attendees.length === 0) throw new Error("Add at least one attendee.");
+  if (new Set(constraints.attendees).size !== constraints.attendees.length) throw new Error("Each attendee can only be selected once.");
   if (constraints.attendees.some((attendee) => typeof attendee !== "string" || !knownAttendees.includes(attendee))) throw new Error("One or more attendees are not available in the demo calendar.");
-  for (const range of [...(constraints.preferredTimes || []), ...(constraints.excludedTimes || [])]) if (!range || !validTime(range.start) || !validTime(range.end) || toMinutes(range.start) >= toMinutes(range.end)) throw new Error("Please use valid time ranges such as 09:00–12:00.");
-  if (!constraints.dateRange?.start || !constraints.dateRange?.end || constraints.dateRange.start > constraints.dateRange.end) throw new Error("Please use a valid date range.");
+  if (!Array.isArray(constraints.preferredDays) || constraints.preferredDays.some((day) => !weekdays.includes(day))) throw new Error("Preferred days must be weekdays.");
+  if (!Array.isArray(constraints.excludedDays) || constraints.excludedDays.some((day) => !weekdays.includes(day))) throw new Error("Excluded days must be weekdays.");
+  if (!Array.isArray(constraints.preferredTimes) || !Array.isArray(constraints.excludedTimes)) throw new Error("Please provide valid preferred and excluded time ranges.");
+  for (const range of [...constraints.preferredTimes, ...constraints.excludedTimes]) if (!range || !validTime(range.start) || !validTime(range.end) || toMinutes(range.start) >= toMinutes(range.end)) throw new Error("Please use valid time ranges such as 09:00–12:00.");
+  if (!constraints.dateRange?.start || !constraints.dateRange?.end || !validDate(constraints.dateRange.start) || !validDate(constraints.dateRange.end) || constraints.dateRange.start > constraints.dateRange.end) throw new Error("Please use a valid date range.");
+  if (typeof constraints.meetingPurpose !== "string" || !constraints.meetingPurpose.trim()) throw new Error("Add a meeting purpose.");
+  if (typeof constraints.location !== "string" || typeof constraints.additionalNotes !== "string") throw new Error("Meeting details must be valid text.");
   return constraints as Constraints;
+}
+
+export function validateSlot(value: unknown): Slot {
+  if (!value || typeof value !== "object") throw new Error("A meeting slot is required.");
+  const slot = value as Partial<Slot>;
+  if (!slot.date || !validDate(slot.date) || !slot.start || !validTime(slot.start) || !slot.end || !validTime(slot.end) || toMinutes(slot.start) >= toMinutes(slot.end)) {
+    throw new Error("A valid meeting slot is required.");
+  }
+  if (typeof slot.label !== "string" || !Array.isArray(slot.available) || !Array.isArray(slot.conflicts)) throw new Error("A complete meeting slot is required.");
+  return slot as Slot;
 }
 
 export const defaultConstraints = (): Constraints => ({
@@ -118,7 +141,11 @@ function preferenceScore(slot: { day: string; start: string; end: string }, cons
 }
 
 export function findSlots(constraints: Constraints): Slot[] {
-  const dates = getWeekDates().filter(({ day }) => !constraints.excludedDays.includes(day));
+  const dates = getWeekDates().filter(({ day, date }) =>
+    date >= constraints.dateRange.start &&
+    date <= constraints.dateRange.end &&
+    !constraints.excludedDays.includes(day),
+  );
   const candidates: Slot[] = [];
   for (const { day, date } of dates) for (let minutes = 9 * 60; minutes <= 17 * 60 - constraints.duration; minutes += 30) {
     const start = toTime(minutes), end = toTime(minutes + constraints.duration);

@@ -7,6 +7,7 @@ import {
   Calendar, Link2, Info, RefreshCw, ChevronRight, Star
 } from "lucide-react";
 import { Agenda, AiStatus, Constraints, InviteDraft, Slot } from "@/types/scheduling";
+import { MeetingRecord } from "@/types/history";
 import { attendees as calendarAttendees, calendar, team } from "@/data/mockCalendarData";
 import { generateInviteText } from "@/lib/googleMeet";
 
@@ -809,12 +810,8 @@ function InviteView({
 }
 
 // ─── Meetings View ─────────────────────────────────────────────────────────────
-function MeetingsView({ onSchedule }: { onSchedule: () => void }) {
-  const recent = [
-    { title: "Q4 Design Review", date: "Sep 18, 2026", attendees: "Alice, Bob, Carol, Dave", status: "Scheduled", score: "96%" },
-    { title: "API Sync", date: "Sep 16, 2026", attendees: "Dave", status: "Scheduled", score: "100%" },
-    { title: "Product Brainstorm", date: "Sep 12, 2026", attendees: "Alice, Bob, Carol", status: "Conflict resolved", score: "88%" },
-  ];
+function MeetingsView({ onSchedule, meetings }: { onSchedule: () => void; meetings: MeetingRecord[] }) {
+  const conflictsResolved = meetings.filter((meeting) => meeting.conflictCount > 0).length;
   return (
     <div className="view workspace-page">
       <div className="section-kicker"><Check size={15} /> MEETING HUB</div>
@@ -826,21 +823,22 @@ function MeetingsView({ onSchedule }: { onSchedule: () => void }) {
         <button className="primary-button" onClick={onSchedule}><Sparkles size={15} /> Schedule meeting</button>
       </div>
       <div className="meeting-stats">
-        <div><strong>12</strong><span>meetings scheduled</span></div>
-        <div><strong>8</strong><span>conflicts resolved</span></div>
-        <div><strong>14m</strong><span>average time saved</span></div>
+        <div><strong>{meetings.length}</strong><span>meetings scheduled</span></div>
+        <div><strong>{conflictsResolved}</strong><span>conflicts reviewed</span></div>
+        <div><strong>{meetings.length ? Math.round(meetings.reduce((sum, meeting) => sum + meeting.fitScore, 0) / meetings.length) : 0}%</strong><span>average fit score</span></div>
       </div>
       <div className="meeting-list">
-        {recent.map((meeting) => (
+        {meetings.length === 0 && <div className="data-note">No scheduled meetings yet. Select a slot to create your first history entry.</div>}
+        {meetings.map((meeting) => (
           <article className="meeting-row" key={meeting.title}>
             <div className="meeting-icon"><Check size={16} /></div>
             <div className="meeting-main">
               <strong>{meeting.title}</strong>
-              <span>{meeting.date} · {meeting.attendees}</span>
+              <span>{meeting.date} · {meeting.attendees.join(", ")}</span>
             </div>
-            <span className="meeting-status">{meeting.status}</span>
-            <strong className="meeting-score">{meeting.score}</strong>
-            <button className="icon-button" aria-label={`Open ${meeting.title}`}><ArrowRight size={16} /></button>
+            <span className="meeting-status">{meeting.status === "scheduled" ? "Scheduled" : "Draft"}</span>
+            <strong className="meeting-score">{meeting.fitScore}%</strong>
+            <span className="meeting-score" title={`${meeting.conflictCount} conflicts`}>{meeting.conflictCount ? `${meeting.conflictCount} conflict${meeting.conflictCount > 1 ? "s" : ""}` : "Clear"}</span>
           </article>
         ))}
       </div>
@@ -939,6 +937,18 @@ export default function Home() {
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("schedule");
   const [aiStatus, setAiStatus] = useState<AiStatus>({ parserUsed: "fallback", agendaUsed: "fallback" });
   const [agendaAiStatus, setAgendaAiStatus] = useState<"ai" | "fallback">("fallback");
+  const [meetings, setMeetings] = useState<MeetingRecord[]>([]);
+
+  useEffect(() => {
+    fetch("/api/meetings")
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Meeting history is unavailable.");
+        setMeetings(data.meetings);
+      })
+      .catch((caught) => setError(caught instanceof Error ? caught.message : "Meeting history is unavailable."));
+  }, []);
+
   async function parseMeeting() {
     if (!input.trim()) return setError("Tell me a little about the meeting first.");
     setError(""); setLoading(true); setLoadingStage(1);
@@ -992,6 +1002,30 @@ export default function Home() {
       setAgenda(data.agenda);
       setInvite(data.invite);
       setAgendaAiStatus(data.agendaAiStatus || "fallback");
+      const record: MeetingRecord = {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        title: data.agenda.title,
+        date: slot.date,
+        attendees: constraints.attendees,
+        status: "scheduled",
+        fitScore: slot.fitScore,
+        conflictCount: slot.conflicts.length,
+        constraints,
+        slot,
+        agenda: data.agenda,
+      };
+      const historyResponse = await fetch("/api/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(record),
+      });
+      if (!historyResponse.ok) {
+        const historyError = await historyResponse.json();
+        setError(historyError.error || "Meeting was created, but history could not be saved.");
+      } else {
+        setMeetings((current) => [record, ...current]);
+      }
       setStep("invite");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Agenda generation failed.");
@@ -1104,7 +1138,7 @@ export default function Home() {
         </aside>
 
         <section className="content">
-          {workspaceView === "meetings" && <MeetingsView onSchedule={() => setWorkspaceView("schedule")} />}
+          {workspaceView === "meetings" && <MeetingsView meetings={meetings} onSchedule={() => setWorkspaceView("schedule")} />}
           {workspaceView === "calendars" && <CalendarsView />}
           {workspaceView === "schedule" && (
             <>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { exchangeGoogleCode } from "@/lib/google";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -13,5 +14,8 @@ export async function GET(request: Request) {
     response.cookies.set("slotiq_google_tokens", JSON.stringify(tokens), { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 60 * 60 * 24 * 30, path: "/" });
     response.cookies.delete("slotiq_oauth_state");
     return response;
-  } catch { return NextResponse.redirect(new URL("/?google=error", request.url)); }
+  } catch (error) {
+    logger.error("Google OAuth callback failed", { error: error instanceof Error ? error.message : String(error) });
+    return NextResponse.redirect(new URL("/?google=error", request.url));
+  }
 }

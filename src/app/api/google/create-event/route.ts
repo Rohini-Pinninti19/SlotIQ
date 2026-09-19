@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createGoogleMeeting } from "@/lib/google";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
   try {
@@ -10,5 +11,8 @@ export async function POST(request: Request) {
     const result = await createGoogleMeeting(tokens, details);
     if (!result.meetLink) return NextResponse.json({ error: "Google Calendar created the event but did not return a Meet link." }, { status: 502 });
     return NextResponse.json(result);
-  } catch { return NextResponse.json({ error: "Google Calendar could not create the meeting. Check OAuth permissions and attendee emails." }, { status: 502 }); }
+  } catch (error) {
+    logger.error("Google Calendar event creation failed", { error: error instanceof Error ? error.message : String(error) });
+    return NextResponse.json({ error: "Google Calendar could not create the meeting. Check OAuth permissions and attendee emails." }, { status: 502 });
+  }
 }

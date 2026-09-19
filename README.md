@@ -57,7 +57,7 @@ The LLM is intentionally kept out of the time-selection decision. A future provi
 - Next.js App Router, React, TypeScript
 - Tailwind CSS v4 and custom CSS tokens
 - Lucide React icons
-- In-memory mock calendar data
+- Mock calendar data with a persistent meeting-history adapter
 - REST-style Next.js route handlers
 
 ## Run locally
@@ -73,8 +73,24 @@ Production validation:
 
 ```bash
 npm run lint
+npm test
 npm run build
 ```
+
+`npm test` runs the deterministic scheduling and parsing test suite with Vitest. Use
+`npm run test:watch` while developing.
+
+## Persistence and observability
+
+Scheduled meetings are stored by `src/lib/meetingHistory.ts` and exposed through
+`GET /api/meetings` and `POST /api/meetings`. The default local file is
+`data/meeting-history.json`; set `MEETING_HISTORY_FILE` to a mounted persistent
+path in production. The adapter keeps the latest 100 records and can be replaced
+with a database implementation without changing the UI contract.
+
+API routes emit structured JSON logs with timestamps and levels through
+`src/lib/logger.ts`. AI failures are logged and intentionally fall back to the
+deterministic parser, agenda generator, or conflict explanation.
 
 ## API routes
 

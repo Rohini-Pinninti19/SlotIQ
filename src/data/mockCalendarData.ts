@@ -54,13 +54,15 @@ export const getWeekDates = () => weekDates.map(([day, date]) => ({ day, date })
 // In a real product these would reference the actual current date.
 export function resolveRelativeDate(expression: string): { start: string; end: string } {
   const lower = expression.toLowerCase();
-  // Always resolve to demo week for predictable hackathon demo
   const demoStart = "2026-09-21";
   const demoEnd = "2026-09-25";
+  const requestedDay = weekDates.find(([day]) => new RegExp(`\\b${day.toLowerCase()}\\b`).test(lower));
+  if (requestedDay && !lower.includes("week")) {
+    return { start: requestedDay[1], end: requestedDay[1] };
+  }
   if (lower.includes("next week") || lower.includes("this week") || lower.includes("next") || lower.includes("week")) {
     return { start: demoStart, end: demoEnd };
   }
-  // tomorrow = Monday of demo week for demo purposes
   if (lower.includes("tomorrow") || lower.includes("today")) {
     return { start: demoStart, end: demoStart };
   }
