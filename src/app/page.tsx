@@ -858,8 +858,19 @@ function MeetingsView({ onSchedule, meetings, syncMode }: { onSchedule: () => vo
 }
 
 // ─── Calendars View ────────────────────────────────────────────────────────────
-function CalendarsView() {
-  const eventByAttendee = calendar.reduce<Record<string, typeof calendar>>((result, event) => {
+function CalendarsView({ meetings }: { meetings: MeetingRecord[] }) {
+  const scheduledEvents = meetings.flatMap((meeting) => meeting.attendees.map((attendee) => ({
+    id: `scheduled-${meeting.id}-${attendee}`,
+    attendee,
+    day: meeting.slot.day,
+    date: meeting.slot.date,
+    start: meeting.slot.start,
+    end: meeting.slot.end,
+    title: meeting.title,
+    role: team.find((member) => member.name === attendee)?.role,
+  })));
+  const allEvents = [...calendar, ...scheduledEvents];
+  const eventByAttendee = allEvents.reduce<Record<string, typeof allEvents>>((result, event) => {
     (result[event.attendee] ||= []).push(event);
     return result;
   }, {});
@@ -887,10 +898,10 @@ function CalendarsView() {
               </div>
               <div className="busy-bars">
                 {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => {
-                  const event = eventByAttendee[name]?.find((item) => item.day === day);
+                  const events = eventByAttendee[name]?.filter((item) => item.day === day) || [];
                   return (
-                    <div className={`busy-cell ${event ? "busy" : "open"}`} key={day} title={event ? `${event.title}, ${event.start}–${event.end}` : `${name} is open`}>
-                      <span>{event ? event.title : "Open"}</span>
+                    <div className={`busy-cell ${events.length ? "busy" : "open"}`} key={day} title={events.length ? events.map((event) => `${event.title}, ${event.start}–${event.end}`).join(" | ") : `${name} is open`}>
+                      <span>{events.length ? events.map((event) => `${event.title} (${event.start}–${event.end})`).join(" · ") : "Open"}</span>
                     </div>
                   );
                 })}
@@ -1175,7 +1186,7 @@ export default function Home() {
 
         <section className="content">
           {workspaceView === "meetings" && <MeetingsView meetings={meetings} onSchedule={() => setWorkspaceView("schedule")} syncMode={syncMode} />}
-          {workspaceView === "calendars" && <CalendarsView />}
+          {workspaceView === "calendars" && <CalendarsView meetings={meetings} />}
           {workspaceView === "schedule" && (
             <>
               {loading && (
