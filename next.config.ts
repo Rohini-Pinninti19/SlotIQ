@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Allow the app to be opened from the development machine's LAN address.
+  allowedDevOrigins: ["10.1.50.180"],
 };
 
 export default nextConfig;
