@@ -83,10 +83,12 @@ Browser workflows are covered by Playwright; run `npx playwright install chromiu
 once, then use `npm run test:e2e`. GitHub Actions runs lint, unit tests, and the
 production build for every push and pull request.
 
-The Meetings view refreshes persisted history periodically so multiple open
-workspaces converge without a manual reload. Each scheduled record also stores
-per-attendee conflict counts, which are aggregated as a fairness indicator in
-the meeting hub.
+The Meetings view subscribes to Supabase Realtime changes when the public
+Supabase URL and anon key are configured, with a 15-second polling fallback for
+local development or disconnected clients. Enable `meeting_history` in the
+Supabase project's Realtime table publication. Each scheduled record also
+stores per-attendee conflict counts, which are aggregated as a fairness
+indicator in the meeting hub.
 
 ## Persistence and observability
 

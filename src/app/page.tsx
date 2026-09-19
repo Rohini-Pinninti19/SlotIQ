@@ -10,6 +10,7 @@ import { Agenda, AiStatus, Constraints, InviteDraft, Slot } from "@/types/schedu
 import { MeetingRecord } from "@/types/history";
 import { attendees as calendarAttendees, calendar, team } from "@/data/mockCalendarData";
 import { generateInviteText } from "@/lib/googleMeet";
+import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Step = "input" | "review" | "results" | "invite";
@@ -812,7 +813,7 @@ function InviteView({
 }
 
 // ─── Meetings View ─────────────────────────────────────────────────────────────
-function MeetingsView({ onSchedule, meetings }: { onSchedule: () => void; meetings: MeetingRecord[] }) {
+function MeetingsView({ onSchedule, meetings, syncMode }: { onSchedule: () => void; meetings: MeetingRecord[]; syncMode: "realtime" | "polling" }) {
   const conflictsResolved = meetings.filter((meeting) => meeting.conflictCount > 0).length;
   const fairness = meetings.reduce<Record<string, number>>((totals, meeting) => {
     Object.entries(meeting.attendeeConflictCounts || {}).forEach(([attendee, count]) => {
@@ -823,7 +824,7 @@ function MeetingsView({ onSchedule, meetings }: { onSchedule: () => void; meetin
   const mostAffected = Object.entries(fairness).sort(([, a], [, b]) => b - a)[0];
   return (
     <div className="view workspace-page">
-      <div className="section-kicker"><Check size={15} /> MEETING HUB</div>
+      <div className="section-kicker"><Check size={15} /> MEETING HUB <span className="sync-status" role="status">{syncMode === "realtime" ? "● Live sync" : "○ Polling fallback"}</span></div>
       <div className="page-heading">
         <div>
           <h2>Recent meetings.</h2>
@@ -949,6 +950,7 @@ export default function Home() {
   const [agendaAiStatus, setAgendaAiStatus] = useState<"ai" | "fallback">("fallback");
   const [meetings, setMeetings] = useState<MeetingRecord[]>([]);
   const [clarification, setClarification] = useState("");
+  const [syncMode, setSyncMode] = useState<"realtime" | "polling">("polling");
 
   useEffect(() => {
     const loadMeetings = () => fetch("/api/meetings")
@@ -959,8 +961,18 @@ export default function Home() {
       })
       .catch((caught) => setError(caught instanceof Error ? caught.message : "Meeting history is unavailable."));
     loadMeetings();
+    const supabase = getSupabaseBrowser();
+    const channel = supabase?.channel("meeting-history-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "meeting_history" }, loadMeetings)
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setSyncMode("realtime");
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setSyncMode("polling");
+      });
     const refresh = window.setInterval(loadMeetings, 15000);
-    return () => window.clearInterval(refresh);
+    return () => {
+      window.clearInterval(refresh);
+      if (channel && supabase) void supabase.removeChannel(channel);
+    };
   }, []);
 
   async function parseMeeting() {
@@ -1162,7 +1174,7 @@ export default function Home() {
         </aside>
 
         <section className="content">
-          {workspaceView === "meetings" && <MeetingsView meetings={meetings} onSchedule={() => setWorkspaceView("schedule")} />}
+          {workspaceView === "meetings" && <MeetingsView meetings={meetings} onSchedule={() => setWorkspaceView("schedule")} syncMode={syncMode} />}
           {workspaceView === "calendars" && <CalendarsView />}
           {workspaceView === "schedule" && (
             <>
