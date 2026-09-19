@@ -57,7 +57,7 @@ The LLM is intentionally kept out of the time-selection decision. A future provi
 - Next.js App Router, React, TypeScript
 - Tailwind CSS v4 and custom CSS tokens
 - Lucide React icons
-- Mock calendar data with a persistent meeting-history adapter
+- Mock calendar data with a Supabase-backed meeting-history adapter
 - REST-style Next.js route handlers
 
 ## Run locally
@@ -83,10 +83,12 @@ npm run build
 ## Persistence and observability
 
 Scheduled meetings are stored by `src/lib/meetingHistory.ts` and exposed through
-`GET /api/meetings` and `POST /api/meetings`. The default local file is
-`data/meeting-history.json`; set `MEETING_HISTORY_FILE` to a mounted persistent
-path in production. The adapter keeps the latest 100 records and can be replaced
-with a database implementation without changing the UI contract.
+`GET /api/meetings` and `POST /api/meetings`. When `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY` are configured, the adapter writes to the
+`public.meeting_history` PostgreSQL table defined in
+`supabase/migrations/20260919181000_create_meeting_history.sql`. The service role
+key is server-only and must never use a `NEXT_PUBLIC_` prefix. Without Supabase
+variables, local development falls back to `MEETING_HISTORY_FILE`.
 
 API routes emit structured JSON logs with timestamps and levels through
 `src/lib/logger.ts`. AI failures are logged and intentionally fall back to the
